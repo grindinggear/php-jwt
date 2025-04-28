@@ -32,7 +32,7 @@ class JWT
     private const ASN1_BIT_STRING = 0x03;
 
     /**
-     * When checking nbf, iat or expiration times,
+     * When checking nbf or expiration times,
      * we want to provide some extra leeway time to
      * account for clock skew.
      *
@@ -87,7 +87,6 @@ class JWT
      * @throws UnexpectedValueException     Provided JWT was invalid
      * @throws SignatureInvalidException    Provided JWT was invalid because the signature verification failed
      * @throws BeforeValidException         Provided JWT is trying to be used before it's eligible as defined by 'nbf'
-     * @throws BeforeValidException         Provided JWT is trying to be used before it's been created as defined by 'iat'
      * @throws ExpiredException             Provided JWT has since expired, as defined by the 'exp' claim
      *
      * @uses jsonDecode
@@ -127,9 +126,6 @@ class JWT
         if (!$payload instanceof stdClass) {
             throw new UnexpectedValueException('Payload must be a JSON object');
         }
-        if (isset($payload->iat) && !\is_numeric($payload->iat)) {
-            throw new UnexpectedValueException('Payload iat must be a number');
-        }
         if (isset($payload->nbf) && !\is_numeric($payload->nbf)) {
             throw new UnexpectedValueException('Payload nbf must be a number');
         }
@@ -165,17 +161,6 @@ class JWT
         if (isset($payload->nbf) && floor($payload->nbf) > ($timestamp + static::$leeway)) {
             $ex = new BeforeValidException(
                 'Cannot handle token with nbf prior to ' . \date(DateTime::ATOM, (int) floor($payload->nbf))
-            );
-            $ex->setPayload($payload);
-            throw $ex;
-        }
-
-        // Check that this token has been created before 'now'. This prevents
-        // using tokens that have been created for later use (and haven't
-        // correctly used the nbf claim).
-        if (!isset($payload->nbf) && isset($payload->iat) && floor($payload->iat) > ($timestamp + static::$leeway)) {
-            $ex = new BeforeValidException(
-                'Cannot handle token with iat prior to ' . \date(DateTime::ATOM, (int) floor($payload->iat))
             );
             $ex->setPayload($payload);
             throw $ex;
